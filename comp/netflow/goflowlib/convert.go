@@ -14,8 +14,8 @@ import (
 	"github.com/DataDog/datadog-agent/comp/netflow/common"
 )
 
-// ConvertFlow convert goflow flow structure to internal flow structure
-func ConvertFlow(srcFlow *flowpb.FlowMessage, namespace string) *common.Flow {
+// ConvertFlow convert goflow flow structure to internal flow structure // JMWFLOW
+func ConvertFlow(srcFlow *flowpb.FlowMessage, namespace string) *common.Flow { // JMWN ConvertFlow - convert goflow flow structure to internal flow structure
 	return &common.Flow{
 		Namespace:       namespace,
 		FlowType:        convertFlowType(srcFlow.Type),
@@ -42,6 +42,7 @@ func ConvertFlow(srcFlow *flowpb.FlowMessage, namespace string) *common.Flow {
 		Tos:             srcFlow.IpTos,
 		NextHop:         srcFlow.NextHop,
 		TCPFlags:        srcFlow.TcpFlags,
+		// JMWJMW attempt to get src/dst rDNS domain enrichment here, or trigger rDNS query thru rDNS cache and then add the enrichment later?
 	}
 }
 
@@ -119,6 +120,7 @@ func applyAdditionalField(flow *common.Flow, destination string, fieldValue any)
 		setInt(&flow.SrcMac, fieldValue)
 	case "source.mask":
 		setInt(&flow.SrcMask, fieldValue)
+	// JMW case "source.rdns.domain":   NO - cuz it's not an additional field, its an enrichment
 	case "destination.ip":
 		setBytes(&flow.DstAddr, fieldValue)
 	case "destination.port":
@@ -129,6 +131,7 @@ func applyAdditionalField(flow *common.Flow, destination string, fieldValue any)
 		setInt(&flow.DstMac, fieldValue)
 	case "destination.mask":
 		setInt(&flow.DstMask, fieldValue)
+	// JMW case "destination.rdns.domain":  NO - cuz it's not an additional field, its an enrichment
 	case "ingress.interface":
 		setInt(&flow.InputInterface, fieldValue)
 	case "egress.interface":

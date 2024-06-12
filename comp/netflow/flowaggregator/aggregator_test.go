@@ -43,6 +43,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/netflow/common"
 	"github.com/DataDog/datadog-agent/comp/netflow/config"
 	"github.com/DataDog/datadog-agent/comp/netflow/goflowlib"
+	"github.com/DataDog/datadog-agent/comp/netflow/rdnsquerier" //JMWHACK JMWMOVE until I make it a component or otherwise move it elsewhere
 	"github.com/DataDog/datadog-agent/comp/netflow/testutil"
 )
 
@@ -80,15 +81,22 @@ func TestAggregator(t *testing.T) {
 		Packets:        4,
 		SrcAddr:        []byte{10, 10, 10, 10},
 		DstAddr:        []byte{10, 10, 10, 20},
-		IPProtocol:     uint32(6),
-		SrcPort:        2000,
-		DstPort:        80,
-		TCPFlags:       19,
-		EtherType:      uint32(0x0800),
+		/* JMWTEST
+		SrcReverseDNSHostname string
+		DstReverseDNSHostname string
+		*/
+		IPProtocol: uint32(6),
+		SrcPort:    2000,
+		DstPort:    80,
+		TCPFlags:   19,
+		EtherType:  uint32(0x0800),
 	}
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(gomock.NewController(t))
 
+	// JMWT - add to destination: "rdns_domain": "jmw-test-destination-domain.com"
+	// JMWT - add to source: "rdns_domain": "jmw-test-source-domain.com"
 	// language=json
+	// JMW add? destination and source "reverse_dns_hostname": ""
 	event := []byte(`
 {
   "bytes": 20,
@@ -165,8 +173,10 @@ func TestAggregator(t *testing.T) {
 	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactEvent.Bytes(), nil, "", 0), "network-devices-netflow").Return(nil).Times(1)
 	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	// JMWCOMPONENT make mock RDNSQuerier
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 	aggregator.FlushFlowsToSendInterval = 1 * time.Second
 	aggregator.TimeNowFunction = func() time.Time {
 		return flushTime
@@ -267,7 +277,9 @@ func TestAggregator_withMockPayload(t *testing.T) {
 	epForwarder.EXPECT().SendEventPlatformEventBlocking(message.NewMessage(compactMetadataEvent.Bytes(), nil, "", 0), "network-devices-metadata").Return(nil).Times(1)
 
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	// JMWCOMPONENT make mock RDNSQuerier
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 	aggregator.FlushFlowsToSendInterval = 1 * time.Second
 	aggregator.TimeNowFunction = func() time.Time {
 		return flushTime
@@ -327,6 +339,7 @@ func TestAggregator_withMockPayload(t *testing.T) {
 func TestFlowAggregator_flush_submitCollectorMetrics_error(t *testing.T) {
 	// 1/ Arrange
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
@@ -359,7 +372,7 @@ func TestFlowAggregator_flush_submitCollectorMetrics_error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 	aggregator.goflowPrometheusGatherer = prometheus.GathererFunc(func() ([]*promClient.MetricFamily, error) {
 		return nil, fmt.Errorf("some prometheus gatherer error")
 	})
@@ -398,8 +411,9 @@ func TestFlowAggregator_submitCollectorMetrics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 	aggregator.goflowPrometheusGatherer = prometheus.GathererFunc(func() ([]*promClient.MetricFamily, error) {
 		return []*promClient.MetricFamily{
 			{
@@ -474,8 +488,9 @@ func TestFlowAggregator_submitCollectorMetrics_error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 	aggregator.goflowPrometheusGatherer = prometheus.GathererFunc(func() ([]*promClient.MetricFamily, error) {
 		return nil, fmt.Errorf("some prometheus gatherer error")
 	})
@@ -508,8 +523,9 @@ func TestFlowAggregator_sendExporterMetadata_multiplePayloads(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 
 	var flows []*common.Flow
 	for i := 1; i <= 250; i++ {
@@ -592,8 +608,9 @@ func TestFlowAggregator_sendExporterMetadata_noPayloads(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 
 	var flows []*common.Flow
 	now := time.Unix(1681295467, 0)
@@ -625,7 +642,8 @@ func TestFlowAggregator_sendExporterMetadata_invalidIPIgnored(t *testing.T) {
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 
 	now := time.Unix(1681295467, 0)
 	flows := []*common.Flow{
@@ -709,7 +727,8 @@ func TestFlowAggregator_sendExporterMetadata_multipleNamespaces(t *testing.T) {
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 
 	now := time.Unix(1681295467, 0)
 	flows := []*common.Flow{
@@ -811,8 +830,9 @@ func TestFlowAggregator_sendExporterMetadata_singleExporterIpWithMultipleFlowTyp
 	ctrl := gomock.NewController(t)
 	epForwarder := eventplatformimpl.NewMockEventPlatformForwarder(ctrl)
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 
-	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger)
+	aggregator := NewFlowAggregator(sender, epForwarder, &conf, "my-hostname", logger, rdnsQuerier)
 
 	now := time.Unix(1681295467, 0)
 	flows := []*common.Flow{
@@ -880,6 +900,7 @@ func TestFlowAggregator_sendExporterMetadata_singleExporterIpWithMultipleFlowTyp
 
 func TestFlowAggregator_getSequenceDelta(t *testing.T) {
 	logger := fxutil.Test[log.Component](t, logimpl.MockModule())
+	rdnsQuerier := rdnsquerier.NewRDNSQuerier()
 	type round struct {
 		flowsToFlush          []*common.Flow
 		expectedSequenceDelta map[sequenceDeltaKey]sequenceDeltaValue
@@ -1163,7 +1184,7 @@ func TestFlowAggregator_getSequenceDelta(t *testing.T) {
 				AggregatorPortRollupThreshold:          10,
 				AggregatorRollupTrackerRefreshInterval: 3600,
 			}
-			agg := NewFlowAggregator(sender, nil, &conf, "my-hostname", logger)
+			agg := NewFlowAggregator(sender, nil, &conf, "my-hostname", logger, rdnsQuerier)
 			for roundNum, testRound := range tt.rounds {
 				assert.Equal(t, testRound.expectedSequenceDelta, agg.getSequenceDelta(testRound.flowsToFlush), fmt.Sprintf("Test Round %d", roundNum))
 			}

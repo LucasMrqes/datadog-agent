@@ -15,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
+// JMWCOMPONENT
+
 // team: network-device-monitoring
 
 // Component is the component type. It has no exposed methods.
@@ -23,5 +25,5 @@ type Component interface{}
 // Module defines the fx options for this component.
 func Module() fxutil.Module {
 	return fxutil.Component(
-		fx.Provide(newServer))
+		fx.Provide(newServer)) // JMWINIT0
 }

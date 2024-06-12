@@ -13,7 +13,10 @@ import (
 	"github.com/DataDog/datadog-agent/comp/netflow/payload"
 )
 
-func buildPayload(aggFlow *common.Flow, hostname string, flushTime time.Time) payload.FlowPayload {
+// JMWJMW add rDNS enrichment to common.Flow and payload.FlowPayload??  Or just the payload.FlowPayload??
+// JMWJMW re: tags vs fields, do we even support tags in NetFlow currently?  If not should we add them anyways?
+// JMWJMW build payload.FlowPayload from common.Flow
+func buildPayload(aggFlow *common.Flow, hostname string, flushTime time.Time) payload.FlowPayload { // JMW7
 	return payload.FlowPayload{
 		// TODO: Implement Tos
 		FlushTimestamp: flushTime.UnixMilli(),
@@ -33,18 +36,20 @@ func buildPayload(aggFlow *common.Flow, hostname string, flushTime time.Time) pa
 		EtherType:  format.EtherType(aggFlow.EtherType),
 		IPProtocol: format.IPProtocol(aggFlow.IPProtocol),
 		Source: payload.Endpoint{
-			IP:                 format.IPAddr(aggFlow.SrcAddr),
-			Port:               format.Port(aggFlow.SrcPort),
-			Mac:                format.MacAddress(aggFlow.SrcMac),
-			Mask:               format.CIDR(aggFlow.SrcAddr, aggFlow.SrcMask),
-			ReverseDNSHostname: aggFlow.SrcReverseDNSHostname,
+			IP:   format.IPAddr(aggFlow.SrcAddr),
+			Port: format.Port(aggFlow.SrcPort),
+			Mac:  format.MacAddress(aggFlow.SrcMac),
+			Mask: format.CIDR(aggFlow.SrcAddr, aggFlow.SrcMask),
+			// JMWJMW instead of adding to common.Flow, only add rDNS enrichment to payload.FlowPayload here?
+			ReverseDNSHostname: aggFlow.SrcReverseDNSHostname, // JMWRDNS
 		},
 		Destination: payload.Endpoint{
-			IP:                 format.IPAddr(aggFlow.DstAddr),
-			Port:               format.Port(aggFlow.DstPort),
-			Mac:                format.MacAddress(aggFlow.DstMac),
-			Mask:               format.CIDR(aggFlow.DstAddr, aggFlow.DstMask),
-			ReverseDNSHostname: aggFlow.DstReverseDNSHostname,
+			IP:   format.IPAddr(aggFlow.DstAddr),
+			Port: format.Port(aggFlow.DstPort),
+			Mac:  format.MacAddress(aggFlow.DstMac),
+			Mask: format.CIDR(aggFlow.DstAddr, aggFlow.DstMask),
+			// JMWJMW instead of adding to common.Flow, only add rDNS enrichment to payload.FlowPayload here?
+			ReverseDNSHostname: aggFlow.DstReverseDNSHostname, // JMWRDNS
 		},
 		Ingress: payload.ObservationPoint{
 			Interface: payload.Interface{
@@ -61,6 +66,6 @@ func buildPayload(aggFlow *common.Flow, hostname string, flushTime time.Time) pa
 		NextHop: payload.NextHop{
 			IP: format.IPAddr(aggFlow.NextHop),
 		},
-		AdditionalFields: aggFlow.AdditionalFields,
+		AdditionalFields: aggFlow.AdditionalFields, // JMW what are aggFlow.AdditionalFields?
 	}
 }
