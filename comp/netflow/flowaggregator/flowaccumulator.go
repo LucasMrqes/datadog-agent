@@ -6,14 +6,13 @@
 package flowaggregator
 
 import (
-	// JMW "net"
 	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/netflow/common"
 	"github.com/DataDog/datadog-agent/comp/netflow/portrollup"
-	"github.com/DataDog/datadog-agent/comp/netflow/rdnsquerier" //JMWHACK JMWMOVE until I make it a component or otherwise move it elsewhere
+	"github.com/DataDog/datadog-agent/comp/rdnsquerier"
 	"go.uber.org/atomic"
 )
 
@@ -40,11 +39,11 @@ type flowAccumulator struct {
 	portRollupThreshold int
 	portRollupDisabled  bool
 
-	hashCollisionFlowCount *atomic.Uint64 // JMW when and why would hashCollisionFlowCount be incremented?
+	hashCollisionFlowCount *atomic.Uint64
 
 	logger log.Component
 
-	rdnsQuerier *rdnsquerier.RDNSQuerier
+	rdnsQuerier rdnsquerier.Component
 }
 
 func newFlowContext(flow *common.Flow) flowContext {
@@ -55,7 +54,7 @@ func newFlowContext(flow *common.Flow) flowContext {
 	}
 }
 
-func newFlowAccumulator(aggregatorFlushInterval time.Duration, aggregatorFlowContextTTL time.Duration, portRollupThreshold int, portRollupDisabled bool, logger log.Component, rdnsQuerier *rdnsquerier.RDNSQuerier) *flowAccumulator { // JMWINIT2
+func newFlowAccumulator(aggregatorFlushInterval time.Duration, aggregatorFlowContextTTL time.Duration, portRollupThreshold int, portRollupDisabled bool, logger log.Component, rdnsQuerier rdnsquerier.Component) *flowAccumulator { // JMWINIT2
 	return &flowAccumulator{
 		flows:                  make(map[uint64]flowContext),
 		flowFlushInterval:      aggregatorFlushInterval,
@@ -198,7 +197,6 @@ func (f *flowAccumulator) add(flowToAdd *common.Flow) { // JMW1
 			for field, value := range flowToAdd.AdditionalFields {
 				if _, ok := aggFlow.flow.AdditionalFields[field]; !ok {
 					aggFlow.flow.AdditionalFields[field] = value
-					f.logger.Debugf("JMW Added additional field `%s` = value `%v` to flow", field, value)
 				}
 			}
 		}

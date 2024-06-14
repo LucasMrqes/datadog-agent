@@ -43,6 +43,7 @@ func Module() fxutil.Module {
 func newNpCollector(deps dependencies) provides {
 	var collector *npCollectorImpl
 
+	// JMWNOOP
 	configs := newConfig(deps.AgentConfig)
 	if configs.networkPathCollectorEnabled() {
 		deps.Logger.Debugf("Network Path Collector enabled")
@@ -64,6 +65,7 @@ func newNpCollector(deps dependencies) provides {
 			})
 		}
 	} else {
+		// JMWNOOP
 		deps.Logger.Debugf("Network Path Collector disabled")
 		collector = newNoopNpCollectorImpl()
 	}

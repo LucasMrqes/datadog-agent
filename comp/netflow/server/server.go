@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/ndmtmp/forwarder"
 	nfconfig "github.com/DataDog/datadog-agent/comp/netflow/config"
 	"github.com/DataDog/datadog-agent/comp/netflow/flowaggregator"
-	"github.com/DataDog/datadog-agent/comp/netflow/rdnsquerier" //JMWHACK JMWMOVE until I make it a component or otherwise move it elsewhere
+	"github.com/DataDog/datadog-agent/comp/rdnsquerier"
 )
 
 type dependencies struct {
@@ -31,7 +31,7 @@ type dependencies struct {
 	Demultiplexer demultiplexer.Component
 	Forwarder     forwarder.Component
 	Hostname      hostname.Component
-	// JMWCOMPONENT can I add a rdnsCachedQuerier component and add it as a dependency?
+	RDNSQuerier   rdnsquerier.Component
 }
 
 type provides struct {
@@ -41,30 +41,7 @@ type provides struct {
 	StatusProvider status.InformationProvider
 }
 
-/*
-type reverseDNSCache struct {
-	// JMW IP address to hostname
-	cache map[string]string
-
-	// JMW mutex for cache
-	mutex sync.RWMutex
-}
-
-func NewReverseDNSCache func() *reverseDNSCache {
-	return &reverseDNSCache{
-		cache: make(map[string]string),
-	}
-}
-
-func (r *reverseDNSCache) PreFetch(ip string) string {
-}
-func (r *reverseDNSCache) Expire() string {
-}
-func (r *reverseDNSCache) TryGet(ip string) (string, bool) {
-}
-*/
-
-// JMWFRI read up on components - can I pass rdnsCachedQuerier w/ dependencies?
+// JMWCOMPONENT read up on components - can I pass rdnsCachedQuerier w/ dependencies?
 // newServer configures a netflow server.
 func newServer(lc fx.Lifecycle, deps dependencies) (provides, error) { // JMWINIT0
 	conf := deps.Config.Get()
@@ -77,7 +54,7 @@ func newServer(lc fx.Lifecycle, deps dependencies) (provides, error) { // JMWINI
 
 	// JMWCACHE create reverse DNS lookup cache here, pass it to flowaggregator, and have it pass it to flowaccumulator
 	// JMWOR create it outside of the netflow component so it can be shared by SNMP metadata and other components
-	flowAgg := flowaggregator.NewFlowAggregator(sender, deps.Forwarder, conf, deps.Hostname.GetSafe(context.Background()), deps.Logger, rdnsquerier.NewRDNSQuerier() /*JMW --> deps.NewRDNSQuerier()*/) //JMWINIT1
+	flowAgg := flowaggregator.NewFlowAggregator(sender, deps.Forwarder, conf, deps.Hostname.GetSafe(context.Background()), deps.Logger /*JMW rdnsquerier.NewRDNSQuerier()*/, deps.RDNSQuerier) //JMWINIT1
 
 	server := &Server{
 		config:  conf,
