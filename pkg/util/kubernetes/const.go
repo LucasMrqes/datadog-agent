@@ -63,11 +63,6 @@ const (
 	// NamespaceKind represents the NamespaceKind object kind
 	NamespaceKind = "Namespace"
 
-	// ResourceNameTagName represents any resource tag name
-	ResourceNameTagName = "kube_resource_name"
-	// ResourceKindTagName represents any resource kind
-	ResourceKindTagName = "kube_resource_kind"
-
 	// CriContainerNamespaceLabel is the label set on containers by runtimes with Pod Namespace
 	CriContainerNamespaceLabel = "io.kubernetes.pod.namespace"
 )
