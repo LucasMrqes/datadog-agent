@@ -32,6 +32,7 @@ type dependencies struct {
 
 type provides struct {
 	fx.Out
+
 	Comp rdnsquerier.Component
 }
 
@@ -42,27 +43,8 @@ func Module() fxutil.Module {
 	)
 }
 
-func newRDNSQuerier(deps dependencies) provides {
-	// Component initialization
-	rdnsQuerier := &rdnsQuerier{
-		lc: deps.Lc,
-		//JMWADDlogger: deps.Logger,
-		cache: make(map[string]rdnsCacheEntry),
-	}
-	return provides{
-		Comp: rdnsQuerier,
-	}
-}
-
-type rdnsCacheEntry struct {
-	//JMWhostname string
-	//JMWUNUSED expirationTime int64
-	// map of hashes to callback to set hostname
-	//JMWcallbacks map[string]func(string)
-}
-
-// RDNSQuerier provides JMW
-type rdnsQuerier struct {
+// rdnsQuerierImpl provides JMW
+type rdnsQuerierImpl struct {
 	lc fx.Lifecycle
 	//JMWUNUSED logger log.Component
 
@@ -71,6 +53,25 @@ type rdnsQuerier struct {
 
 	// map of ip to hostname and expiration time
 	cache map[string]rdnsCacheEntry
+}
+
+func newRDNSQuerier(deps dependencies) provides {
+	// Component initialization
+	querier := &rdnsQuerierImpl{
+		lc: deps.Lc,
+		//JMWADDlogger: deps.Logger,
+		cache: make(map[string]rdnsCacheEntry),
+	}
+	return provides{
+		Comp: querier,
+	}
+}
+
+type rdnsCacheEntry struct {
+	//JMWhostname string
+	//JMWUNUSED expirationTime int64
+	// map of hashes to callback to set hostname
+	//JMWcallbacks map[string]func(string)
 }
 
 /*JMWRM no longer needed now that it's a component, but still used in aggregator_test.go
@@ -90,7 +91,7 @@ func timer(name string) func() {
 }
 
 // GetHostname returns the hostname for the given IP address JMW
-func (q *rdnsQuerier) GetHostname(ipAddr []byte) string {
+func (q *rdnsQuerierImpl) GetHostname(ipAddr []byte) string {
 	defer timer("timer JMW GetHostname() all")()
 
 	ip := net.IP(ipAddr)
@@ -131,7 +132,7 @@ func (q *rdnsQuerier) GetHostname(ipAddr []byte) string {
 
 /*
 // JMW Get returns the hostname for the given IP address
-func (q *rdnsQuerier) Get(ip string) string {
+func (q *rdnsquerier) Get(ip string) string {
 	entry, ok := q.cache[ip]
 	if ok && entry.expirationTime < time.Now().Unix() {
 		return entry.hostname
@@ -142,7 +143,7 @@ func (q *rdnsQuerier) Get(ip string) string {
 */
 
 /* JMWASYNC
-func (q *rdnsQuerier) GetAsync(ip string, func inlineCallback(string), func asyncCallback(string)) {
+func (q *rdnsquerier) GetAsync(ip string, func inlineCallback(string), func asyncCallback(string)) {
 	entry, ok := q.cache[ip]
 	if ok {
 		if entry.expirationTime < time.Now().Unix() {

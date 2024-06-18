@@ -40,7 +40,7 @@ func Module() fxutil.Module {
 	)
 }
 
-func newNpCollector(deps dependencies) provides {
+func newNpCollector(deps dependencies) provides { // JMWNOOP
 	var collector *npCollectorImpl
 
 	// JMWNOOP
